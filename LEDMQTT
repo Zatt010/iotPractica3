@@ -1,0 +1,153 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+int pin[6]={2,4,5,18,19,21};
+const char* WIFI_SSID = "F";
+const char* WIFI_PASS = "lohguapoz";
+
+const char* MQTT_BROKER = "broker.hivemq.com";
+const int MQTT_PORT = 1883;
+
+const char* MQTT_CLIENT_ID = "grupo31.1";
+const char* SUBSCRIBE_TOPIC = "grupo3/in";   // subscribe topic
+const char* PUBLISH_TOPIC = "ucb/out";
+String finalMessage;
+ 
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
+boolean mqttClientConnect() {
+  Serial.println("Connecting to " + String(MQTT_BROKER));
+  if (mqttClient.connect(MQTT_CLIENT_ID)) {
+    Serial.println("Connected to " + String(MQTT_BROKER));
+
+    mqttClient.subscribe(SUBSCRIBE_TOPIC);
+    Serial.println("Subscribed to " + String(SUBSCRIBE_TOPIC));
+  } else {
+    Serial.println("Can't connect to " + String(MQTT_BROKER));
+  }
+  return mqttClient.connected();
+}
+
+// PubSubClient callback function
+void callback(const char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (int i = 0; i < length; i++) {
+    message += String((char) payload[i]);
+  }
+  if (String(topic) == SUBSCRIBE_TOPIC) {
+    Serial.println("Message from topic " + String(topic) + " : " + message);
+ }
+ finalMessage=message;
+ int Speed= String(message).toInt();
+ measureSpeed(Speed);
+}
+void measureSpeed(int Speed)
+{
+    if(Speed==0)
+   {
+
+          for(int i = 0;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          } 
+   }
+  if(Speed>=1 && Speed<=5 )
+   {
+    
+
+          for(int i = 1;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          }
+          digitalWrite( pin[0] , HIGH);
+          
+   }
+   if(Speed>=6 && Speed<= 11)
+   {
+          
+          for(int i = 2;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          }
+          for(int i = 0;i<2;i++){
+          digitalWrite( pin[i] , HIGH);
+          }
+    }
+        if(Speed>=12 && Speed<= 20)
+   {
+          
+          for(int i = 3;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          }
+          for(int i = 0;i<3;i++){
+          digitalWrite( pin[i] , HIGH);
+          }
+    }  
+     if(Speed>=21 && Speed<= 30)
+   {
+          
+          for(int i = 4;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          }
+          for(int i = 0;i<4;i++){
+          digitalWrite( pin[i] , HIGH);
+          }
+    }  
+    if(Speed>=31 && Speed<= 40)
+   {
+          
+          for(int i = 5;i<6;i++){
+          digitalWrite( pin[i] , LOW);
+          }
+          for(int i = 0;i<5;i++){
+          digitalWrite( pin[i] , HIGH);
+          }
+    }  
+    if(Speed>=41)
+   {
+        
+          for(int i = 0;i<6;i++){
+          digitalWrite( pin[i] , HIGH);
+          }
+    }  
+}
+//
+void setup() {
+  for(int i=0; i<7;i++)
+  {
+      pinMode(pin[i], OUTPUT);
+  }
+  Serial.begin(115200);
+
+  Serial.println("Connecting to " + String(WIFI_SSID));
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  if (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Can't connect to " + String(WIFI_SSID));
+    while (1) delay(200);
+  }
+  Serial.println("Connected to " + String(WIFI_SSID));
+
+  mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
+  mqttClient.setCallback(callback);
+}
+unsigned long previousConnectMillis = 0;
+unsigned long previousPublishMillis = 0;
+
+unsigned char counter = 0;
+
+void loop() {
+  unsigned long now = millis();
+  if (!mqttClient.connected()) {
+    if (now - previousConnectMillis >= 2000) {
+      previousConnectMillis = now;
+      if (mqttClientConnect()) previousConnectMillis = 0;
+      else delay(1000);
+    }
+  } else { // mqtt is connected
+    mqttClient.loop();
+    delay(20);
+  }
+  if (now - previousPublishMillis >= 3000) {
+      previousPublishMillis = now;
+      // publish
+      String message = "Ultima velocidad grabada: " + finalMessage;
+      mqttClient.publish(PUBLISH_TOPIC, message.c_str());
+    }
+}
